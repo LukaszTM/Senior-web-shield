@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#FFFFFF</color>
+    <color name="text_primary">#111111</color>
+    <color name="text_secondary">#444444</color>
+    <color name="status_on">#1B7A2F</color>
+    <color name="status_off">#C62828</color>
+    <color name="button_on">#1B7A2F</color>
+    <color name="button_off">#C62828</color>
+    <color name="shield">#1B5E9E</color>
+    <color name="counter_bg">#EEF3F8</color>
+    <color name="launcher_background">#1B5E9E</color>
+</resources>

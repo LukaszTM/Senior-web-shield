@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tarcza Seniora</string>
+
+    <string name="status_on">OCHRONA WŁĄCZONA</string>
+    <string name="status_off">OCHRONA WYŁĄCZONA</string>
+    <string name="status_on_hint">Telefon jest chroniony przed natarczywymi reklamami.</string>
+    <string name="status_off_hint">Naciśnij zielony przycisk, aby włączyć ochronę.</string>
+
+    <string name="btn_enable">WŁĄCZ OCHRONĘ</string>
+    <string name="btn_disable">WYŁĄCZ OCHRONĘ</string>
+
+    <string name="blocked_counter">Zablokowane reklamy\nDzisiaj: %1$d\nŁącznie: %2$d</string>
+
+    <string name="consent_needed">Aby ochrona działała, trzeba wyrazić zgodę w okienku, które się pojawi. Spróbuj jeszcze raz.</string>
+
+    <string name="help_text">Jak to działa?\n\n• Aplikacja blokuje reklamy w grach i innych aplikacjach na tym telefonie.\n• Chroni też przed stronami, które wyłudzają pieniądze i dane.\n• Po włączeniu u góry ekranu pojawi się mały symbol klucza — to znak, że ochrona działa.\n• Ochrona włącza się sama po ponownym uruchomieniu telefonu.\n\nNic nie trzeba więcej robić. W razie problemów z jakąś aplikacją wystarczy nacisnąć czerwony przycisk, aby na chwilę wyłączyć ochronę.</string>
+
+    <string name="notification_channel_name">Stan ochrony</string>
+    <string name="notification_title">Tarcza Seniora czuwa</string>
+    <string name="notification_text">Reklamy i niebezpieczne strony są blokowane.</string>
+</resources>

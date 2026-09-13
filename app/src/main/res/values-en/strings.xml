@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Senior Shield</string>
+
+    <string name="status_on">PROTECTION IS ON</string>
+    <string name="status_off">PROTECTION IS OFF</string>
+    <string name="status_on_hint">This phone is protected from intrusive ads.</string>
+    <string name="status_off_hint">Press the green button to turn protection on.</string>
+
+    <string name="btn_enable">TURN PROTECTION ON</string>
+    <string name="btn_disable">TURN PROTECTION OFF</string>
+
+    <string name="blocked_counter">Blocked ads\nToday: %1$d\nTotal: %2$d</string>
+
+    <string name="consent_needed">To protect the phone, please allow the connection in the dialog that appears. Try again.</string>
+
+    <string name="help_text">How does it work?\n\n• The app blocks ads inside games and other apps on this phone.\n• It also protects against scam and phishing websites.\n• When protection is on, a small key symbol appears at the top of the screen.\n• Protection turns itself back on after the phone restarts.\n\nNothing else needs to be done. If an app misbehaves, press the red button to pause protection for a while.</string>
+
+    <string name="notification_channel_name">Protection status</string>
+    <string name="notification_title">Senior Shield is on guard</string>
+    <string name="notification_text">Ads and dangerous websites are being blocked.</string>
+</resources>
