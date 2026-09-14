@@ -1,4 +1,4 @@
-# Tarcza Seniora 🛡️
+# Shield ADV 🛡️
 
 Aplikacja na Androida, która **blokuje natarczywe reklamy w aplikacjach i grach** na
 telefonie — zaprojektowana specjalnie **z myślą o seniorach**. Chroni przed agresywnymi
@@ -44,9 +44,9 @@ Minimalna wersja Androida: **8.0 (API 26)**.
 1. Zainstaluj APK i uruchom aplikację.
 2. Naciśnij **WŁĄCZ OCHRONĘ** i zatwierdź systemowe okienko zgody na VPN („OK").
 3. Na Androidzie 13+ zezwól na powiadomienia (żeby ochrona nie była ubijana w tle).
-4. Warto dodatkowo: Ustawienia → Aplikacje → Tarcza Seniora → Bateria →
+4. Warto dodatkowo: Ustawienia → Aplikacje → Shield ADV → Bateria →
    **Bez ograniczeń** (żeby system nie zatrzymywał ochrony).
-5. Opcjonalnie: Ustawienia → Sieć → VPN → Tarcza Seniora → **Stały VPN**
+5. Opcjonalnie: Ustawienia → Sieć → VPN → Shield ADV → **Stały VPN**
    (ochrona nie do wyłączenia przypadkiem).
 
 ## Ograniczenia (uczciwie)

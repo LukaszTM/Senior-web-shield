@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TarczaSeniora"
+rootProject.name = "ShieldADV"
 include(":app")
