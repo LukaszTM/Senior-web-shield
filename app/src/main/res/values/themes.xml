@@ -3,6 +3,6 @@
     <style name="Theme.TarczaSeniora" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@color/background</item>
         <item name="colorPrimary">@color/shield</item>
-        <item name="android:statusBarColor">@color/shield</item>
+        <item name="android:statusBarColor">@color/navy</item>
     </style>
 </resources>

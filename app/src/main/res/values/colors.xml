@@ -7,7 +7,7 @@
     <color name="status_off">#C62828</color>
     <color name="button_on">#1B7A2F</color>
     <color name="button_off">#C62828</color>
-    <color name="shield">#1B5E9E</color>
+    <color name="shield">#2F6FB5</color>
+    <color name="navy">#0F2A44</color>
     <color name="counter_bg">#EEF3F8</color>
-    <color name="launcher_background">#1B5E9E</color>
 </resources>
