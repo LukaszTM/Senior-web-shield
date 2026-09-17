@@ -19,4 +19,38 @@
     <string name="notification_channel_name">Protection status</string>
     <string name="notification_title">Shield ADV is on guard</string>
     <string name="notification_text">Ads and dangerous websites are being blocked.</string>
+
+    <!-- navigation -->
+    <string name="tab_home">Protection</string>
+    <string name="tab_blocked">Blocked</string>
+
+    <!-- logo -->
+    <string name="logo_brand">Shield</string>
+    <string name="logo_adv">ADV</string>
+    <string name="logo_author">Ł.KAP</string>
+
+    <!-- blocked list -->
+    <string name="blocked_title">Blocked websites</string>
+    <string name="blocked_summary">Sites on the list: %1$d</string>
+    <string name="blocked_intro">The rating tells you how dangerous a site is. All of them were stopped before they could load.</string>
+    <string name="blocked_empty">Nothing has been blocked yet.\n\nThe list fills in by itself while protection is on and you use the phone.</string>
+    <string name="blocked_meta">Blocked %1$s · last %2$s</string>
+    <string name="time_today">today at %1$s</string>
+    <plurals name="blocked_times">
+        <item quantity="one">%d time</item>
+        <item quantity="other">%d times</item>
+    </plurals>
+
+    <!-- safety ratings -->
+    <string name="rating_low">LOW RISK</string>
+    <string name="rating_medium">MEDIUM RISK</string>
+    <string name="rating_high">HIGH RISK</string>
+    <string name="cat_ads">Advertising</string>
+    <string name="cat_tracking">Tracking</string>
+    <string name="cat_scam">Dangerous</string>
+    <string name="cat_filter">Suspicious</string>
+    <string name="desc_ads">ad network – shows intrusive ads inside apps.</string>
+    <string name="desc_tracking">tracker – follows what you do on the phone and builds your profile.</string>
+    <string name="desc_scam">intrusive ads that often lead to scams and fraud.</string>
+    <string name="desc_filter">stopped by the network filter as advertising or tracking.</string>
 </resources>

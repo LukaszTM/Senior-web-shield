@@ -60,6 +60,52 @@ object Dns {
         return r
     }
 
+    /**
+     * True when a DNS response answers with a zero address (A 0.0.0.0 or AAAA ::),
+     * which is how ad-filtering resolvers such as AdGuard DNS signal a blocked name.
+     */
+    fun isZeroAnswer(msg: ByteArray): Boolean {
+        if (msg.size < 12) return false
+        if (msg[2].toInt() and 0x80 == 0) return false // not a response
+        if (msg[3].toInt() and 0x0F != 0) return false  // error rcode: not a filter answer
+        val qdCount = u16(msg, 4)
+        val anCount = u16(msg, 6)
+        var i = 12
+        repeat(qdCount) {
+            i = skipName(msg, i) ?: return false
+            i += 4
+        }
+        repeat(anCount) {
+            i = skipName(msg, i) ?: return false
+            if (i + 10 > msg.size) return false
+            val type = u16(msg, i)
+            val rdLength = u16(msg, i + 8)
+            val rdata = i + 10
+            if (rdata + rdLength > msg.size) return false
+            if ((type == 1 && rdLength == 4) || (type == 28 && rdLength == 16)) {
+                var allZero = true
+                for (j in rdata until rdata + rdLength) {
+                    if (msg[j].toInt() != 0) { allZero = false; break }
+                }
+                if (allZero) return true
+            }
+            i = rdata + rdLength
+        }
+        return false
+    }
+
+    /** Returns the offset right after a (possibly compressed) name, or null if malformed. */
+    private fun skipName(msg: ByteArray, start: Int): Int? {
+        var i = start
+        while (true) {
+            if (i >= msg.size) return null
+            val len = msg[i].toInt() and 0xFF
+            if (len == 0) return i + 1
+            if (len and 0xC0 == 0xC0) return if (i + 2 <= msg.size) i + 2 else null
+            i += 1 + len
+        }
+    }
+
     private fun u16(b: ByteArray, off: Int): Int =
         ((b[off].toInt() and 0xFF) shl 8) or (b[off + 1].toInt() and 0xFF)
 }

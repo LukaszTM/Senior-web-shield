@@ -181,4 +181,30 @@ class DnsTest {
         while ((s shr 16) != 0L) s = (s and 0xFFFF) + (s shr 16)
         assertEquals(0xFFFFL, s)
     }
+
+    /** A response with one compressed-name answer record of the given type and rdata. */
+    private fun buildResponse(query: ByteArray, type: Int, rdata: ByteArray): ByteArray {
+        val out = ArrayList<Byte>()
+        for (b in query) out.add(b)
+        out[2] = (out[2].toInt() or 0x80).toByte() // QR
+        out[7] = 1                                  // ANCOUNT
+        out.add(0xC0.toByte()); out.add(0x0C)        // name pointer to the question
+        out.add((type ushr 8).toByte()); out.add(type.toByte())
+        out.add(0); out.add(1)                       // class IN
+        out.add(0); out.add(0); out.add(0); out.add(60) // TTL
+        out.add((rdata.size ushr 8).toByte()); out.add(rdata.size.toByte())
+        for (b in rdata) out.add(b)
+        return out.toByteArray()
+    }
+
+    @Test
+    fun detectsZeroAddressAnswersFromFilteringResolver() {
+        assertTrue(Dns.isZeroAnswer(buildResponse(query, 1, ByteArray(4))))
+        assertTrue(Dns.isZeroAnswer(buildResponse(buildDnsQuery("ads.example", 28), 28, ByteArray(16))))
+        assertFalse(Dns.isZeroAnswer(buildResponse(query, 1, byteArrayOf(93, 184.toByte(), 216.toByte(), 34))))
+        assertFalse(Dns.isZeroAnswer(query))               // a query is not an answer
+        val nx = Dns.buildNxDomain(query, Dns.parseQuestion(query)!!)
+        assertFalse(Dns.isZeroAnswer(nx))                  // NXDOMAIN is not a zero answer
+        assertFalse(Dns.isZeroAnswer(buildResponse(query, 1, ByteArray(4)).copyOf(30))) // truncated
+    }
 }

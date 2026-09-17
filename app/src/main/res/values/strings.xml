@@ -19,4 +19,40 @@
     <string name="notification_channel_name">Stan ochrony</string>
     <string name="notification_title">Shield ADV czuwa</string>
     <string name="notification_text">Reklamy i niebezpieczne strony są blokowane.</string>
+
+    <!-- navigation -->
+    <string name="tab_home">Ochrona</string>
+    <string name="tab_blocked">Zablokowane</string>
+
+    <!-- logo -->
+    <string name="logo_brand">Shield</string>
+    <string name="logo_adv">ADV</string>
+    <string name="logo_author">Ł.KAP</string>
+
+    <!-- blocked list -->
+    <string name="blocked_title">Zablokowane strony</string>
+    <string name="blocked_summary">Stron na liście: %1$d</string>
+    <string name="blocked_intro">Ocena mówi, jak groźna jest dana strona. Wszystkie zostały zatrzymane, zanim zdążyły się załadować.</string>
+    <string name="blocked_empty">Na razie nic nie zablokowano.\n\nLista wypełni się sama, gdy ochrona będzie włączona, a Ty będziesz korzystać z telefonu.</string>
+    <string name="blocked_meta">Zablokowano %1$s · ostatnio %2$s</string>
+    <string name="time_today">dzisiaj o %1$s</string>
+    <plurals name="blocked_times">
+        <item quantity="one">%d raz</item>
+        <item quantity="few">%d razy</item>
+        <item quantity="many">%d razy</item>
+        <item quantity="other">%d razy</item>
+    </plurals>
+
+    <!-- safety ratings -->
+    <string name="rating_low">NISKIE RYZYKO</string>
+    <string name="rating_medium">ŚREDNIE RYZYKO</string>
+    <string name="rating_high">WYSOKIE RYZYKO</string>
+    <string name="cat_ads">Reklama</string>
+    <string name="cat_tracking">Śledzenie</string>
+    <string name="cat_scam">Niebezpieczna</string>
+    <string name="cat_filter">Podejrzana</string>
+    <string name="desc_ads">sieć reklamowa – wyświetla natarczywe reklamy w aplikacjach.</string>
+    <string name="desc_tracking">tracker – śledzi, co robisz w telefonie, i buduje Twój profil.</string>
+    <string name="desc_scam">natarczywe reklamy, które często prowadzą do oszustw i wyłudzeń.</string>
+    <string name="desc_filter">zatrzymana przez filtr sieciowy jako reklama lub śledzenie.</string>
 </resources>

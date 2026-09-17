@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import pl.seniorshield.app.dns.Dns
+import pl.seniorshield.app.dns.DnsQuestion
 import pl.seniorshield.app.dns.Packets
 import pl.seniorshield.app.dns.UdpDatagram
 import java.io.FileInputStream
@@ -114,6 +115,7 @@ class ShieldVpnService : VpnService() {
             return
         }
         tun = fd
+        BlockLog.init(this)
         if (blockList == null) {
             blockList = BlockList.load(this)
             Log.i(TAG, "Blocklist loaded: ${blockList?.size} domains")
@@ -146,16 +148,22 @@ class ShieldVpnService : VpnService() {
         if (udp.dstPort != 53) return
         val question = Dns.parseQuestion(udp.payload)
 
-        if (question != null && blockList?.isBlocked(question.name) == true) {
+        val category = question?.let { blockList?.lookup(it.name) }
+        if (question != null && category != null) {
             val reply = Packets.buildUdpReply(udp, Dns.buildNxDomain(udp.payload, question))
             writePacket(output, reply)
-            Prefs.incrementBlocked(this)
+            onBlocked(question.name, category)
             return
         }
-        executor.execute { forwardQuery(udp, output) }
+        executor.execute { forwardQuery(udp, question, output) }
     }
 
-    private fun forwardQuery(udp: UdpDatagram, output: FileOutputStream) {
+    private fun onBlocked(domain: String, category: Category) {
+        Prefs.incrementBlocked(this)
+        BlockLog.record(domain, category)
+    }
+
+    private fun forwardQuery(udp: UdpDatagram, question: DnsQuestion?, output: FileOutputStream) {
         for (upstream in upstreams) {
             var socket: DatagramSocket? = null
             try {
@@ -169,7 +177,11 @@ class ShieldVpnService : VpnService() {
                 val buf = ByteArray(4096)
                 val response = DatagramPacket(buf, buf.size)
                 socket.receive(response)
-                writePacket(output, Packets.buildUdpReply(udp, buf.copyOf(response.length)))
+                val answer = buf.copyOf(response.length)
+                writePacket(output, Packets.buildUdpReply(udp, answer))
+                if (question != null && Dns.isZeroAnswer(answer)) {
+                    onBlocked(question.name, Category.FILTER)
+                }
                 return
             } catch (e: IOException) {
                 // Timeout or network error — try the next upstream.
@@ -199,6 +211,7 @@ class ShieldVpnService : VpnService() {
         }
         tun = null
         workerThread = null
+        BlockLog.flush()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
     }
 

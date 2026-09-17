@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="190dp"
+    android:viewportWidth="160"
+    android:viewportHeight="190">
+    <group
+        android:translateX="80"
+        android:translateY="6">
+        <!-- outer navy shield -->
+        <path
+            android:fillColor="#0F2A44"
+            android:pathData="M0,0 L70,22 V90 C70,135 30,165 0,178 C-30,165 -70,135 -70,90 V22 Z" />
+        <!-- inner blue shield -->
+        <path
+            android:fillColor="#2F6FB5"
+            android:pathData="M0,12 L58,30 V90 C58,128 24,152 0,163 C-24,152 -58,128 -58,90 V30 Z" />
+        <!-- right-half shading -->
+        <path
+            android:fillAlpha="0.35"
+            android:fillColor="#0F2A44"
+            android:pathData="M0,12 L58,30 V90 C58,128 24,152 0,163 V12 Z" />
+        <!-- check mark -->
+        <path
+            android:pathData="M-24,104 L-6,120 L28,70"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.5" />
+        <!-- network lines -->
+        <path
+            android:pathData="M-30,60 L0,88 M30,60 L0,88"
+            android:strokeColor="#3DDC97"
+            android:strokeWidth="2" />
+        <!-- network nodes -->
+        <path
+            android:fillColor="#3DDC97"
+            android:pathData="M-7,88 A7,7 0 1 0 7,88 A7,7 0 1 0 -7,88 Z" />
+        <path
+            android:fillColor="#3DDC97"
+            android:pathData="M-35,60 A5,5 0 1 0 -25,60 A5,5 0 1 0 -35,60 Z" />
+        <path
+            android:fillColor="#3DDC97"
+            android:pathData="M25,60 A5,5 0 1 0 35,60 A5,5 0 1 0 25,60 Z" />
+    </group>
+</vector>

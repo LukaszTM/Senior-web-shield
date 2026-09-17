@@ -24,6 +24,10 @@ Aplikacja nie wymaga roota. Korzysta z mechanizmu **lokalnego VPN** systemu Andr
 - **Jeden wielki przycisk** — zielony włącza, czerwony wyłącza. Nic więcej.
 - **Duże czcionki i kontrastowe kolory** (WCAG), proste komunikaty po polsku.
 - **Licznik zablokowanych reklam** (dzisiaj / łącznie) — widać, że ochrona działa.
+- **Zakładka „Zablokowane"** — lista zatrzymanych stron z **oceną bezpieczeństwa**
+  (niskie / średnie / wysokie ryzyko), prostym wyjaśnieniem, liczbą blokad i czasem
+  ostatniej. Ocena wynika z kategorii domeny na wbudowanej liście (`[ads]`, `[tracking]`,
+  `[scam]`); strony zatrzymane przez AdGuard DNS są oznaczane jako „Podejrzana".
 - **Automatyczny start po restarcie telefonu** — senior nie musi niczego pamiętać.
 - **Stała ikona klucza** na pasku statusu = ochrona aktywna.
 - Brak reklam, brak opłat, brak zbierania jakichkolwiek danych.

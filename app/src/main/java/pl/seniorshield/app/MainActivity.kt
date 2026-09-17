@@ -1,45 +1,16 @@
 package pl.seniorshield.app
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.google.android.material.button.MaterialButton
+import androidx.fragment.app.Fragment
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var statusText: TextView
-    private lateinit var statusHint: TextView
-    private lateinit var toggleButton: MaterialButton
-    private lateinit var counterText: TextView
-
-    private val uiHandler = Handler(Looper.getMainLooper())
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            refreshUi()
-            uiHandler.postDelayed(this, 2000)
-        }
-    }
-
-    private val vpnConsentLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                startProtection()
-            } else {
-                Toast.makeText(this, R.string.consent_needed, Toast.LENGTH_LONG).show()
-                refreshUi()
-            }
-        }
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional */ }
@@ -47,76 +18,29 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        BlockLog.init(this)
 
-        statusText = findViewById(R.id.status_text)
-        statusHint = findViewById(R.id.status_hint)
-        toggleButton = findViewById(R.id.toggle_button)
-        counterText = findViewById(R.id.counter_text)
-
-        toggleButton.setOnClickListener {
-            if (ShieldVpnService.isRunning.get()) {
-                stopProtection()
-            } else {
-                enableProtection()
+        val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
+        nav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> show(HomeFragment(), TAG_HOME)
+                R.id.nav_blocked -> show(BlockedFragment(), TAG_BLOCKED)
+                else -> return@setOnItemSelectedListener false
             }
+            true
+        }
+        if (savedInstanceState == null) {
+            nav.selectedItemId = R.id.nav_home
         }
 
         requestNotificationPermissionIfNeeded()
     }
 
-    override fun onResume() {
-        super.onResume()
-        uiHandler.post(refreshRunnable)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        uiHandler.removeCallbacks(refreshRunnable)
-    }
-
-    private fun enableProtection() {
-        val consentIntent = VpnService.prepare(this)
-        if (consentIntent != null) {
-            vpnConsentLauncher.launch(consentIntent)
-        } else {
-            startProtection()
-        }
-    }
-
-    private fun startProtection() {
-        Prefs.setEnabled(this, true)
-        val intent = Intent(this, ShieldVpnService::class.java).setAction(ShieldVpnService.ACTION_START)
-        ContextCompat.startForegroundService(this, intent)
-        refreshUi()
-    }
-
-    private fun stopProtection() {
-        Prefs.setEnabled(this, false)
-        val intent = Intent(this, ShieldVpnService::class.java).setAction(ShieldVpnService.ACTION_STOP)
-        startService(intent)
-        refreshUi()
-    }
-
-    private fun refreshUi() {
-        val running = ShieldVpnService.isRunning.get()
-        if (running) {
-            statusText.setText(R.string.status_on)
-            statusText.setTextColor(ContextCompat.getColor(this, R.color.status_on))
-            statusHint.setText(R.string.status_on_hint)
-            toggleButton.setText(R.string.btn_disable)
-            toggleButton.setBackgroundColor(ContextCompat.getColor(this, R.color.button_off))
-        } else {
-            statusText.setText(R.string.status_off)
-            statusText.setTextColor(ContextCompat.getColor(this, R.color.status_off))
-            statusHint.setText(R.string.status_off_hint)
-            toggleButton.setText(R.string.btn_enable)
-            toggleButton.setBackgroundColor(ContextCompat.getColor(this, R.color.button_on))
-        }
-        counterText.text = getString(
-            R.string.blocked_counter,
-            Prefs.blockedToday(this),
-            Prefs.blockedTotal(this)
-        )
+    private fun show(fragment: Fragment, tag: String) {
+        if (supportFragmentManager.findFragmentByTag(tag)?.isVisible == true) return
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment, tag)
+            .commit()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -126,5 +50,10 @@ class MainActivity : AppCompatActivity() {
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private companion object {
+        const val TAG_HOME = "home"
+        const val TAG_BLOCKED = "blocked"
     }
 }

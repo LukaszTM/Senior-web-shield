@@ -1,10 +1,15 @@
-# Tarcza Seniora — wbudowana lista blokowanych domen.
+# Shield ADV — wbudowana lista blokowanych domen.
 # Format: jedna domena w linii. Wpis blokuje domenę i wszystkie jej subdomeny.
 # Linie zaczynające się od # to komentarze.
+# Linia [kategoria] ustawia kategorię dla kolejnych wpisów:
+#   [ads]      – sieci reklamowe (niskie ryzyko)
+#   [tracking] – trackery i analityka (średnie ryzyko)
+#   [scam]     – natarczywe/oszukańcze sieci, malvertising (wysokie ryzyko)
 #
 # Lista celowo NIE zawiera domen potrzebnych do działania aplikacji
 # (google.com, gstatic.com, facebook.com, googleapis.com itp.).
 
+[ads]
 # ---- Google – sieci reklamowe (AdMob, AdSense, DoubleClick) ----
 doubleclick.net
 googlesyndication.com
@@ -150,6 +155,7 @@ richaudience.com
 smilewanted.com
 sunmedia.tv
 
+[scam]
 # ---- Natarczywe sieci "clickbait" i push (częste oszustwa) ----
 taboola.com
 outbrain.com
@@ -194,6 +200,7 @@ redirectvoluum.com
 voluumtrk.com
 trackvoluum.com
 
+[tracking]
 # ---- Trackery i analityka reklamowa ----
 scorecardresearch.com
 quantserve.com
@@ -257,12 +264,14 @@ connectad.io
 adkernel.com
 adtelligent.com
 betweendigital.com
-
-# ---- Polskie sieci reklamowe i trackery ----
-adocean.pl
+# polskie trackery
 gemius.pl
 hit.gemius.pl
 gemhb.com
+
+[ads]
+# ---- Polskie sieci reklamowe ----
+adocean.pl
 adkontekst.pl
 netsprint.eu
 wp.ad.pl
@@ -274,6 +283,7 @@ clickonometrics.pl
 adrino.pl
 tvn.adocean.pl
 
+[scam]
 # ---- Domeny znane z malvertisingu / scamów ----
 adshell.net
 adspyglass.com
