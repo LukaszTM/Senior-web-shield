@@ -26,11 +26,37 @@ jobs:
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ShieldADV-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # The signed release build runs only when the signing secrets are configured
+      # (Settings -> Secrets and variables -> Actions): SHIELD_KEYSTORE_BASE64,
+      # SHIELD_KEYSTORE_PASSWORD, SHIELD_KEY_ALIAS, SHIELD_KEY_PASSWORD.
+      - name: Prepare release keystore
+        if: env.KEYSTORE_B64 != ''
+        env:
+          KEYSTORE_B64: ${{ secrets.SHIELD_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/shield-release.jks"
+          echo "SHIELD_KEYSTORE_PATH=$RUNNER_TEMP/shield-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        if: env.SHIELD_KEYSTORE_PATH != ''
+        env:
+          SHIELD_KEYSTORE_PASSWORD: ${{ secrets.SHIELD_KEYSTORE_PASSWORD }}
+          SHIELD_KEY_ALIAS: ${{ secrets.SHIELD_KEY_ALIAS }}
+          SHIELD_KEY_PASSWORD: ${{ secrets.SHIELD_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Upload release APK
+        if: env.SHIELD_KEYSTORE_PATH != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShieldADV-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
 
       - name: Upload test reports on failure
         if: failure()

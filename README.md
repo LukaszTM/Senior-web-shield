@@ -43,6 +43,28 @@ Wymagany Android Studio (lub Android SDK z platformą 34):
 
 Minimalna wersja Androida: **8.0 (API 26)**.
 
+### Podpisane wydanie (release)
+
+APK debugowy jest podpisany kluczem testowym, przez co Google Play Protect może go
+blokować jako „aplikację nieznanego dewelopera". Wydania powinny być podpisane własnym,
+stałym kluczem:
+
+```bash
+keytool -genkeypair -v -keystore shield-adv-release.jks -alias shieldadv \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Klucz przechowuj bezpiecznie — aktualizacja aplikacji wymaga tego samego klucza.
+W GitHub (Settings → Secrets and variables → Actions) ustaw sekrety:
+`SHIELD_KEYSTORE_BASE64` (wynik `base64 -w0 shield-adv-release.jks`),
+`SHIELD_KEYSTORE_PASSWORD`, `SHIELD_KEY_ALIAS` (`shieldadv`), `SHIELD_KEY_PASSWORD`.
+Workflow zbuduje wtedy dodatkowo artefakt **ShieldADV-release-apk**. Lokalnie:
+
+```bash
+SHIELD_KEYSTORE_PATH=/sciezka/shield-adv-release.jks SHIELD_KEYSTORE_PASSWORD=... \
+SHIELD_KEY_ALIAS=shieldadv SHIELD_KEY_PASSWORD=... ./gradlew assembleRelease
+```
+
 ## Instalacja u seniora (dla opiekuna)
 
 1. Zainstaluj APK i uruchom aplikację.

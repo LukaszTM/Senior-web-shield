@@ -15,6 +15,20 @@ android {
         versionName = "1.1"
     }
 
+    // Release signing comes from the environment (CI secrets or a local shell);
+    // without it the release build falls back to the debug key.
+    val keystorePath = System.getenv("SHIELD_KEYSTORE_PATH")
+    if (!keystorePath.isNullOrBlank()) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("SHIELD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SHIELD_KEY_ALIAS")
+                keyPassword = System.getenv("SHIELD_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -23,6 +37,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
