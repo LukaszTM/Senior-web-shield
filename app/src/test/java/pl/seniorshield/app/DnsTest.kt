@@ -207,4 +207,16 @@ class DnsTest {
         assertFalse(Dns.isZeroAnswer(nx))                  // NXDOMAIN is not a zero answer
         assertFalse(Dns.isZeroAnswer(buildResponse(query, 1, ByteArray(4)).copyOf(30))) // truncated
     }
+
+    @Test
+    fun readsAndRewritesIdAndTtl() {
+        val msg = buildResponse(query, 1, byteArrayOf(1, 2, 3, 4))
+        assertEquals(0x1234, Dns.id(msg))
+        Dns.setId(msg, 0xBEEF)
+        assertEquals(0xBEEF, Dns.id(msg))
+        assertEquals(60L, Dns.minAnswerTtl(msg))
+        assertNull(Dns.minAnswerTtl(query))
+        assertNull(Dns.minAnswerTtl(Dns.buildNxDomain(query, Dns.parseQuestion(query)!!)))
+        assertEquals(Dns.RCODE_NXDOMAIN, Dns.rcode(Dns.buildNxDomain(query, Dns.parseQuestion(query)!!)))
+    }
 }

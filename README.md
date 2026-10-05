@@ -53,6 +53,21 @@ Minimalna wersja Androida: **8.0 (API 26)**.
 5. Opcjonalnie: Ustawienia → Sieć → VPN → Shield ADV → **Stały VPN**
    (ochrona nie do wyłączenia przypadkiem).
 
+## Wydajność
+
+Przez tunel przechodzą tylko zapytania DNS, więc przepustowość nie jest ograniczana.
+Żeby nie było też odczuwalnych opóźnień:
+
+- VPN jest oznaczony jako **sieć nielimitowana** (`setMetered(false)`) — inaczej Android
+  traktuje połączenie jak taryfowe i ogranicza jakość wideo, pobieranie i synchronizację.
+- Zapytania są wysyłane przez **jedno współdzielone gniazdo** z dowolną liczbą zapytań
+  w locie; brak odpowiedzi po 1 s powoduje ponowienie do kolejnego serwera AdGuard
+  (IPv4 i IPv6), wygrywa pierwsza odpowiedź.
+- **Pamięć podręczna DNS** (do 2000 wpisów, z poszanowaniem TTL) obsługuje powtórne
+  zapytania bez ruchu sieciowego.
+- Próby TCP/TLS do lokalnego serwera DNS (np. sonda „Prywatny DNS: automatycznie"
+  w Androidzie) dostają natychmiast **TCP RST** zamiast czekać na timeout.
+
 ## Ograniczenia (uczciwie)
 
 - **Reklamy YouTube i reklamy w wynikach Google nie są blokowane** — są serwowane

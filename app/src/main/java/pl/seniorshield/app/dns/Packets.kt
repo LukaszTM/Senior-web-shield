@@ -13,56 +13,106 @@ class UdpDatagram(
     val payload: ByteArray,
 )
 
+/** The parts of a TCP segment needed to answer it with a reset. */
+class TcpSegment(
+    val isIpv6: Boolean,
+    val srcAddr: ByteArray,
+    val dstAddr: ByteArray,
+    val srcPort: Int,
+    val dstPort: Int,
+    val seq: Long,
+    val ack: Long,
+    val flags: Int,
+    val dataLen: Int,
+) {
+    val hasAck: Boolean get() = flags and FLAG_ACK != 0
+    val hasSyn: Boolean get() = flags and FLAG_SYN != 0
+    val hasFin: Boolean get() = flags and FLAG_FIN != 0
+    val hasRst: Boolean get() = flags and FLAG_RST != 0
+
+    companion object {
+        const val FLAG_FIN = 0x01
+        const val FLAG_SYN = 0x02
+        const val FLAG_RST = 0x04
+        const val FLAG_ACK = 0x10
+    }
+}
+
 object Packets {
 
-    /**
-     * Parses a raw IP packet. Returns null for anything that is not a plain,
-     * unfragmented UDP datagram (other traffic is simply dropped by the service).
-     */
-    fun parseUdp(packet: ByteArray): UdpDatagram? {
-        if (packet.size < 28) return null
-        return when ((packet[0].toInt() ushr 4) and 0xF) {
-            4 -> parseUdp4(packet)
-            6 -> parseUdp6(packet)
+    private const val PROTO_TCP = 6
+    private const val PROTO_UDP = 17
+
+    /** Fixed IP header fields shared by the parsers. */
+    private class IpHeader(
+        val isIpv6: Boolean,
+        val headerLen: Int,
+        val protocol: Int,
+        val srcAddr: ByteArray,
+        val dstAddr: ByteArray,
+        /** Length of the transport segment (header + data). */
+        val transportLen: Int,
+    )
+
+    private fun parseIp(p: ByteArray): IpHeader? {
+        if (p.size < 20) return null
+        return when ((p[0].toInt() ushr 4) and 0xF) {
+            4 -> {
+                val ihl = (p[0].toInt() and 0xF) * 4
+                if (ihl < 20 || p.size < ihl) return null
+                if (u16(p, 6) and 0x3FFF != 0) return null // fragments are not supported
+                val totalLen = u16(p, 2)
+                if (totalLen > p.size || totalLen < ihl) return null
+                IpHeader(false, ihl, p[9].toInt() and 0xFF, p.copyOfRange(12, 16), p.copyOfRange(16, 20), totalLen - ihl)
+            }
+            6 -> {
+                if (p.size < 40) return null
+                val payloadLen = u16(p, 4)
+                if (40 + payloadLen > p.size) return null
+                // Extension headers are not supported; the next header must be the transport.
+                IpHeader(true, 40, p[6].toInt() and 0xFF, p.copyOfRange(8, 24), p.copyOfRange(24, 40), payloadLen)
+            }
             else -> null
         }
     }
 
-    private fun parseUdp4(p: ByteArray): UdpDatagram? {
-        val ihl = (p[0].toInt() and 0xF) * 4
-        if (ihl < 20 || p.size < ihl + 8) return null
-        if ((p[9].toInt() and 0xFF) != 17) return null // not UDP
-        // Reject fragments (fragment offset != 0 or MF set)
-        val fragField = u16(p, 6)
-        if (fragField and 0x3FFF != 0) return null
-        val totalLen = u16(p, 2)
-        if (totalLen > p.size || totalLen < ihl + 8) return null
-        val udpLen = u16(p, ihl + 4)
-        if (udpLen < 8 || ihl + udpLen > totalLen) return null
+    /**
+     * Parses a raw IP packet. Returns null for anything that is not a plain,
+     * unfragmented UDP datagram.
+     */
+    fun parseUdp(packet: ByteArray): UdpDatagram? {
+        val ip = parseIp(packet) ?: return null
+        if (ip.protocol != PROTO_UDP || ip.transportLen < 8) return null
+        val off = ip.headerLen
+        val udpLen = u16(packet, off + 4)
+        if (udpLen < 8 || udpLen > ip.transportLen) return null
         return UdpDatagram(
-            isIpv6 = false,
-            srcAddr = p.copyOfRange(12, 16),
-            dstAddr = p.copyOfRange(16, 20),
-            srcPort = u16(p, ihl),
-            dstPort = u16(p, ihl + 2),
-            payload = p.copyOfRange(ihl + 8, ihl + udpLen),
+            isIpv6 = ip.isIpv6,
+            srcAddr = ip.srcAddr,
+            dstAddr = ip.dstAddr,
+            srcPort = u16(packet, off),
+            dstPort = u16(packet, off + 2),
+            payload = packet.copyOfRange(off + 8, off + udpLen),
         )
     }
 
-    private fun parseUdp6(p: ByteArray): UdpDatagram? {
-        if (p.size < 48) return null
-        if ((p[6].toInt() and 0xFF) != 17) return null // extension headers not supported
-        val payloadLen = u16(p, 4)
-        if (payloadLen < 8 || 40 + payloadLen > p.size) return null
-        val udpLen = u16(p, 44)
-        if (udpLen < 8 || udpLen > payloadLen) return null
-        return UdpDatagram(
-            isIpv6 = true,
-            srcAddr = p.copyOfRange(8, 24),
-            dstAddr = p.copyOfRange(24, 40),
-            srcPort = u16(p, 40),
-            dstPort = u16(p, 42),
-            payload = p.copyOfRange(48, 40 + udpLen),
+    /** Parses a raw IP packet carrying TCP; null for anything else. */
+    fun parseTcp(packet: ByteArray): TcpSegment? {
+        val ip = parseIp(packet) ?: return null
+        if (ip.protocol != PROTO_TCP || ip.transportLen < 20) return null
+        val off = ip.headerLen
+        val dataOffset = ((packet[off + 12].toInt() ushr 4) and 0xF) * 4
+        if (dataOffset < 20 || dataOffset > ip.transportLen) return null
+        return TcpSegment(
+            isIpv6 = ip.isIpv6,
+            srcAddr = ip.srcAddr,
+            dstAddr = ip.dstAddr,
+            srcPort = u16(packet, off),
+            dstPort = u16(packet, off + 2),
+            seq = u32(packet, off + 4),
+            ack = u32(packet, off + 8),
+            flags = packet[off + 13].toInt() and 0x3F,
+            dataLen = ip.transportLen - dataOffset,
         )
     }
 
@@ -71,59 +121,99 @@ object Packets {
      * (source/destination addresses and ports are swapped).
      */
     fun buildUdpReply(query: UdpDatagram, payload: ByteArray): ByteArray {
-        return if (query.isIpv6) buildReply6(query, payload) else buildReply4(query, payload)
-    }
-
-    private fun buildReply4(q: UdpDatagram, payload: ByteArray): ByteArray {
-        val totalLen = 20 + 8 + payload.size
-        val p = ByteArray(totalLen)
-        p[0] = 0x45 // version 4, IHL 5
-        put16(p, 2, totalLen)
-        p[6] = 0x40 // Don't Fragment
-        p[8] = 64   // TTL
-        p[9] = 17   // UDP
-        q.dstAddr.copyInto(p, 12) // reply comes "from" the original destination
-        q.srcAddr.copyInto(p, 16)
-        put16(p, 10, checksum(sum16(p, 0, 20)))
-        // UDP header
-        put16(p, 20, q.dstPort)
-        put16(p, 22, q.srcPort)
-        put16(p, 24, 8 + payload.size)
-        // UDP checksum is optional over IPv4; leave 0
-        payload.copyInto(p, 28)
-        return p
-    }
-
-    private fun buildReply6(q: UdpDatagram, payload: ByteArray): ByteArray {
         val udpLen = 8 + payload.size
-        val p = ByteArray(40 + udpLen)
-        p[0] = 0x60 // version 6
-        put16(p, 4, udpLen)
-        p[6] = 17 // next header: UDP
-        p[7] = 64 // hop limit
-        q.dstAddr.copyInto(p, 8)
-        q.srcAddr.copyInto(p, 24)
-        put16(p, 40, q.dstPort)
-        put16(p, 42, q.srcPort)
-        put16(p, 44, udpLen)
-        payload.copyInto(p, 48)
-        // Mandatory UDP checksum with IPv6 pseudo-header
-        var sum = sum16(p, 8, 32)          // src + dst
-        sum += udpLen.toLong()             // upper-layer length
-        sum += 17L                         // next header
-        sum += sum16(p, 40, udpLen)        // UDP header + payload (checksum field is 0)
-        var c = checksum(sum)
-        if (c == 0) c = 0xFFFF
-        put16(p, 46, c)
-        return p
+        val udp = ByteArray(udpLen)
+        put16(udp, 0, query.dstPort)
+        put16(udp, 2, query.srcPort)
+        put16(udp, 4, udpLen)
+        payload.copyInto(udp, 8)
+        put16(udp, 6, transportChecksum(query.isIpv6, query.dstAddr, query.srcAddr, PROTO_UDP, udp))
+        return buildIp(query.isIpv6, query.dstAddr, query.srcAddr, PROTO_UDP, udp)
+    }
+
+    /**
+     * Builds a TCP reset answering [segment] (RFC 793 §3.4), so a client that
+     * tries TCP against the fake DNS address fails immediately instead of
+     * retransmitting SYNs for a minute.
+     */
+    fun buildTcpReset(segment: TcpSegment): ByteArray {
+        val seq: Long
+        val ack: Long
+        val flags: Int
+        if (segment.hasAck) {
+            seq = segment.ack
+            ack = 0
+            flags = TcpSegment.FLAG_RST
+        } else {
+            seq = 0
+            var consumed = segment.dataLen.toLong()
+            if (segment.hasSyn) consumed++
+            if (segment.hasFin) consumed++
+            ack = (segment.seq + consumed) and 0xFFFFFFFFL
+            flags = TcpSegment.FLAG_RST or TcpSegment.FLAG_ACK
+        }
+        val tcp = ByteArray(20)
+        put16(tcp, 0, segment.dstPort)
+        put16(tcp, 2, segment.srcPort)
+        put32(tcp, 4, seq)
+        put32(tcp, 8, ack)
+        tcp[12] = (5 shl 4).toByte() // data offset: 5 words
+        tcp[13] = flags.toByte()
+        put16(tcp, 16, transportChecksum(segment.isIpv6, segment.dstAddr, segment.srcAddr, PROTO_TCP, tcp))
+        return buildIp(segment.isIpv6, segment.dstAddr, segment.srcAddr, PROTO_TCP, tcp)
+    }
+
+    private fun buildIp(isIpv6: Boolean, src: ByteArray, dst: ByteArray, protocol: Int, transport: ByteArray): ByteArray {
+        return if (isIpv6) {
+            val p = ByteArray(40 + transport.size)
+            p[0] = 0x60
+            put16(p, 4, transport.size)
+            p[6] = protocol.toByte()
+            p[7] = 64 // hop limit
+            src.copyInto(p, 8)
+            dst.copyInto(p, 24)
+            transport.copyInto(p, 40)
+            p
+        } else {
+            val p = ByteArray(20 + transport.size)
+            p[0] = 0x45
+            put16(p, 2, p.size)
+            p[6] = 0x40 // Don't Fragment
+            p[8] = 64   // TTL
+            p[9] = protocol.toByte()
+            src.copyInto(p, 12)
+            dst.copyInto(p, 16)
+            put16(p, 10, fold(sum16(p, 0, 20)))
+            transport.copyInto(p, 20)
+            p
+        }
+    }
+
+    /** Transport checksum over the IPv4/IPv6 pseudo-header plus the segment. */
+    private fun transportChecksum(isIpv6: Boolean, src: ByteArray, dst: ByteArray, protocol: Int, segment: ByteArray): Int {
+        var sum = sum16(src, 0, src.size) + sum16(dst, 0, dst.size)
+        sum += segment.size.toLong()
+        sum += protocol.toLong()
+        sum += sum16(segment, 0, segment.size)
+        val c = fold(sum)
+        // UDP uses 0 to mean "no checksum", so a computed zero is sent as all ones.
+        return if (c == 0 && protocol == PROTO_UDP) 0xFFFF else c
     }
 
     private fun u16(b: ByteArray, off: Int): Int =
         ((b[off].toInt() and 0xFF) shl 8) or (b[off + 1].toInt() and 0xFF)
 
+    private fun u32(b: ByteArray, off: Int): Long =
+        (u16(b, off).toLong() shl 16) or u16(b, off + 2).toLong()
+
     private fun put16(b: ByteArray, off: Int, v: Int) {
         b[off] = ((v ushr 8) and 0xFF).toByte()
         b[off + 1] = (v and 0xFF).toByte()
+    }
+
+    private fun put32(b: ByteArray, off: Int, v: Long) {
+        put16(b, off, ((v ushr 16) and 0xFFFF).toInt())
+        put16(b, off + 2, (v and 0xFFFF).toInt())
     }
 
     private fun sum16(data: ByteArray, off: Int, len: Int): Long {
@@ -138,7 +228,7 @@ object Packets {
         return s
     }
 
-    private fun checksum(sum: Long): Int {
+    private fun fold(sum: Long): Int {
         var s = sum
         while ((s shr 16) != 0L) s = (s and 0xFFFF) + (s shr 16)
         return (s.inv() and 0xFFFF).toInt()

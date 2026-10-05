@@ -10,6 +10,24 @@ class DnsQuestion(
 
 object Dns {
 
+    const val RCODE_NOERROR = 0
+    const val RCODE_NXDOMAIN = 3
+
+    fun id(msg: ByteArray): Int = u16(msg, 0)
+
+    fun setId(msg: ByteArray, id: Int) {
+        msg[0] = ((id ushr 8) and 0xFF).toByte()
+        msg[1] = (id and 0xFF).toByte()
+    }
+
+    fun isResponse(msg: ByteArray): Boolean = msg.size >= 12 && (msg[2].toInt() and 0x80) != 0
+
+    fun isTruncated(msg: ByteArray): Boolean = msg.size >= 12 && (msg[2].toInt() and 0x02) != 0
+
+    fun rcode(msg: ByteArray): Int = if (msg.size >= 12) msg[3].toInt() and 0x0F else -1
+
+    fun answerCount(msg: ByteArray): Int = if (msg.size >= 12) u16(msg, 6) else 0
+
     /**
      * Parses the first question of a DNS query message.
      * Returns null for responses, empty questions and malformed packets.
@@ -65,9 +83,41 @@ object Dns {
      * which is how ad-filtering resolvers such as AdGuard DNS signal a blocked name.
      */
     fun isZeroAnswer(msg: ByteArray): Boolean {
+        if (!isResponse(msg) || rcode(msg) != RCODE_NOERROR) return false
+        var zero = false
+        walkAnswers(msg) { type, _, rdata, rdLength ->
+            if ((type == 1 && rdLength == 4) || (type == 28 && rdLength == 16)) {
+                var allZero = true
+                for (j in rdata until rdata + rdLength) {
+                    if (msg[j].toInt() != 0) { allZero = false; break }
+                }
+                if (allZero) zero = true
+            }
+            !zero
+        }
+        return zero
+    }
+
+    /**
+     * The smallest TTL (seconds) among the answer records, or null when the
+     * message has no answer records or is malformed.
+     */
+    fun minAnswerTtl(msg: ByteArray): Long? {
+        if (!isResponse(msg)) return null
+        var min = -1L
+        val ok = walkAnswers(msg) { _, ttl, _, _ ->
+            if (min < 0 || ttl < min) min = ttl
+            true
+        }
+        return if (ok && min >= 0) min else null
+    }
+
+    /**
+     * Visits every answer record as (type, ttl, rdataOffset, rdLength); the
+     * visitor returns false to stop early. Returns false if the message is malformed.
+     */
+    private fun walkAnswers(msg: ByteArray, visitor: (Int, Long, Int, Int) -> Boolean): Boolean {
         if (msg.size < 12) return false
-        if (msg[2].toInt() and 0x80 == 0) return false // not a response
-        if (msg[3].toInt() and 0x0F != 0) return false  // error rcode: not a filter answer
         val qdCount = u16(msg, 4)
         val anCount = u16(msg, 6)
         var i = 12
@@ -79,19 +129,14 @@ object Dns {
             i = skipName(msg, i) ?: return false
             if (i + 10 > msg.size) return false
             val type = u16(msg, i)
+            val ttl = (u16(msg, i + 4).toLong() shl 16) or u16(msg, i + 6).toLong()
             val rdLength = u16(msg, i + 8)
             val rdata = i + 10
             if (rdata + rdLength > msg.size) return false
-            if ((type == 1 && rdLength == 4) || (type == 28 && rdLength == 16)) {
-                var allZero = true
-                for (j in rdata until rdata + rdLength) {
-                    if (msg[j].toInt() != 0) { allZero = false; break }
-                }
-                if (allZero) return true
-            }
+            if (!visitor(type, ttl, rdata, rdLength)) return true
             i = rdata + rdLength
         }
-        return false
+        return true
     }
 
     /** Returns the offset right after a (possibly compressed) name, or null if malformed. */
