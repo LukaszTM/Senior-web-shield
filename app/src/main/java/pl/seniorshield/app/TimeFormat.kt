@@ -7,10 +7,6 @@ import java.util.Date
 import java.util.Locale
 
 object TimeFormat {
-    /** "14:32" */
-    fun clock(millis: Long): String =
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
-
     /** "dzisiaj o 14:32" for today, otherwise "5 paź, 14:32". */
     fun relative(context: Context, millis: Long): String {
         val date = Date(millis)

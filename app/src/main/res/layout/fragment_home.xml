@@ -69,20 +69,6 @@
             android:textColor="@color/text_secondary"
             android:textSize="22sp" />
 
-        <TextView
-            android:id="@+id/down_banner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_banner"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/banner_down"
-            android:textColor="@color/status_off"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/toggle_button"
             android:layout_width="match_parent"

@@ -1,6 +1,5 @@
 package pl.seniorshield.app
 
-import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,8 +8,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -37,20 +34,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  * to the operator's own resolver (AdGuard DNS only as a fallback), so CDN
  * selection and speed match a phone without the shield. No other traffic is
  * routed through the tunnel and nothing leaves the device except plain DNS.
- *
- * Protection can be paused for a while: the tunnel closes but the service stays
- * in the foreground and brings it back by itself when the pause ends.
  */
 class ShieldVpnService : VpnService() {
 
     companion object {
         const val ACTION_START = "pl.seniorshield.app.action.START"
         const val ACTION_STOP = "pl.seniorshield.app.action.STOP"
-        const val ACTION_PAUSE = "pl.seniorshield.app.action.PAUSE"
-        const val ACTION_RESUME = "pl.seniorshield.app.action.RESUME"
         const val ACTION_UPDATE_LISTS = "pl.seniorshield.app.action.UPDATE_LISTS"
-        const val EXTRA_PAUSE_MINUTES = "minutes"
-        const val DEFAULT_PAUSE_MINUTES = 15
 
         val isRunning = AtomicBoolean(false)
 
@@ -64,7 +54,6 @@ class ShieldVpnService : VpnService() {
         private const val DNS_PORT = 53
         private const val LIST_CHECK_INTERVAL_HOURS = 6L
         private const val LIST_RETRY_MINUTES = 15L
-        private const val RESUME_ALARM_SLACK_MS = 5_000L
     }
 
     private var tun: ParcelFileDescriptor? = null
@@ -78,37 +67,24 @@ class ShieldVpnService : VpnService() {
     private val listUpdater by lazy { ListUpdater(this) }
     private var maintenance: ScheduledExecutorService? = null
     private val listRetryPending = AtomicBoolean(false)
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val resumeRunnable = Runnable { resumeFromPause() }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        return when (intent?.action) {
             ACTION_STOP -> {
-                clearPause()
-                stopTunnel()
-                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                stopVpn()
                 stopSelf()
-                return START_NOT_STICKY
+                START_NOT_STICKY
             }
-            ACTION_PAUSE -> pause(intent.getIntExtra(EXTRA_PAUSE_MINUTES, DEFAULT_PAUSE_MINUTES))
-            ACTION_RESUME -> resumeFromPause()
             ACTION_UPDATE_LISTS -> {
-                if (tun == null && Prefs.pausedUntil(this) == 0L) startVpn()
+                if (tun == null) startVpn()
                 maintenance?.execute { refreshLists(force = true) }
+                START_STICKY
             }
             else -> {
-                // ACTION_START, or a sticky restart after the system killed us (null intent).
-                val pausedUntil = Prefs.pausedUntil(this)
-                if (intent == null && pausedUntil > 0L) {
-                    showPaused(pausedUntil)
-                    armResume(pausedUntil)
-                } else {
-                    clearPause()
-                    startVpn()
-                }
+                startVpn()
+                START_STICKY
             }
         }
-        return START_STICKY
     }
 
     private fun startVpn() {
@@ -119,7 +95,7 @@ class ShieldVpnService : VpnService() {
             return
         }
 
-        showRunning()
+        startAsForeground()
 
         val builder = Builder()
             .setSession(getString(R.string.app_name))
@@ -165,7 +141,7 @@ class ShieldVpnService : VpnService() {
             upstream.start()
         } catch (e: IOException) {
             Log.e(TAG, "cannot open upstream socket", e)
-            stopTunnel()
+            stopVpn()
             stopSelf()
             return
         }
@@ -174,8 +150,6 @@ class ShieldVpnService : VpnService() {
             upstream.setUnderlyingNetwork(network, dns)
         }.also { it.start() }
         isRunning.set(true)
-        Alerts.cancelProtectionDown(this)
-        GuardianWorker.schedule(this)
 
         workerThread = Thread({ runLoop(fd) }, "shield-tun-reader").also { it.start() }
 
@@ -193,53 +167,6 @@ class ShieldVpnService : VpnService() {
             LIST_CHECK_INTERVAL_HOURS, LIST_CHECK_INTERVAL_HOURS, TimeUnit.HOURS
         )
     }
-
-    // ---- pause / resume -------------------------------------------------
-
-    private fun pause(minutes: Int) {
-        val until = System.currentTimeMillis() + minutes.coerceAtLeast(1) * 60_000L
-        stopTunnel()
-        Prefs.setPausedUntil(this, until)
-        showPaused(until)
-        armResume(until)
-        Log.i(TAG, "paused for $minutes min")
-    }
-
-    private fun resumeFromPause() {
-        clearPause()
-        startVpn()
-    }
-
-    /** Timer inside this (foreground) process, plus an alarm in case the process is killed meanwhile. */
-    private fun armResume(until: Long) {
-        mainHandler.removeCallbacks(resumeRunnable)
-        mainHandler.postDelayed(resumeRunnable, (until - System.currentTimeMillis()).coerceAtLeast(0L))
-        try {
-            getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, until + RESUME_ALARM_SLACK_MS, resumeIntent()
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "resume alarm not set", e)
-        }
-    }
-
-    private fun clearPause() {
-        mainHandler.removeCallbacks(resumeRunnable)
-        Prefs.setPausedUntil(this, 0L)
-        try {
-            getSystemService(AlarmManager::class.java).cancel(resumeIntent())
-        } catch (e: Exception) {
-            // nothing scheduled
-        }
-    }
-
-    private fun resumeIntent(): PendingIntent = PendingIntent.getForegroundService(
-        this, 1,
-        Intent(this, ShieldVpnService::class.java).setAction(ACTION_RESUME),
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
-
-    // ---- lists ------------------------------------------------------------
 
     /** Downloads newer lists when due and swaps them in; never blocks DNS handling. */
     private fun refreshLists(force: Boolean) {
@@ -268,8 +195,6 @@ class ShieldVpnService : VpnService() {
         Prefs.setListsDomainCount(this, fresh.totalSize)
         Log.i(TAG, "filters: builtin=${fresh.builtinSize} cert=${fresh.phishingSize} adguard=${fresh.adsSize}")
     }
-
-    // ---- packet handling ---------------------------------------------------
 
     private fun runLoop(fd: ParcelFileDescriptor) {
         val input = FileInputStream(fd.fileDescriptor)
@@ -344,10 +269,7 @@ class ShieldVpnService : VpnService() {
         }
     }
 
-    // ---- lifecycle -----------------------------------------------------------
-
-    /** Closes the tunnel and its helpers; the foreground notification is left to the caller. */
-    private fun stopTunnel() {
+    private fun stopVpn() {
         isRunning.set(false)
         maintenance?.shutdownNow()
         maintenance = null
@@ -366,55 +288,22 @@ class ShieldVpnService : VpnService() {
         workerThread = null
         cache.clear()
         BlockLog.flush()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
     }
 
     override fun onRevoke() {
         // Another VPN app took over or the user revoked consent in settings.
         Prefs.setEnabled(this, false)
-        clearPause()
-        stopTunnel()
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopVpn()
         stopSelf()
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        // Some phones kill the service when the app is swiped away; come back.
-        if (tun == null && Prefs.isEnabled(this) && Prefs.pausedUntil(this) == 0L) startVpn()
-        super.onTaskRemoved(rootIntent)
-    }
-
     override fun onDestroy() {
-        mainHandler.removeCallbacks(resumeRunnable)
-        stopTunnel()
+        stopVpn()
         super.onDestroy()
     }
 
-    // ---- notifications -------------------------------------------------------
-
-    private fun showRunning() {
-        startInForeground(
-            buildNotification(
-                getString(R.string.notification_title),
-                getString(R.string.notification_text),
-                action = null
-            )
-        )
-    }
-
-    private fun showPaused(until: Long) {
-        val resume = NotificationCompat.Action.Builder(
-            R.drawable.ic_shield, getString(R.string.notification_resume), resumeIntent()
-        ).build()
-        startInForeground(
-            buildNotification(
-                getString(R.string.notification_paused_title),
-                getString(R.string.notification_paused_text, TimeFormat.clock(until)),
-                action = resume
-            )
-        )
-    }
-
-    private fun buildNotification(title: String, text: String, action: NotificationCompat.Action?): Notification {
+    private fun startAsForeground() {
         val manager = getSystemService(NotificationManager::class.java)
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
             manager.createNotificationChannel(
@@ -430,17 +319,13 @@ class ShieldVpnService : VpnService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle(title)
-            .setContentText(text)
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
             .setOngoing(true)
             .setContentIntent(contentIntent)
-        if (action != null) builder.addAction(action)
-        return builder.build()
-    }
-
-    private fun startInForeground(notification: Notification) {
+            .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceCompat.startForeground(
                 this, NOTIFICATION_ID, notification,

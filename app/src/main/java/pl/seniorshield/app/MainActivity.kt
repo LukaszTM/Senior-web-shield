@@ -19,14 +19,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         BlockLog.init(this)
-        GuardianWorker.schedule(this)
 
         val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         nav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> show(HomeFragment(), TAG_HOME)
                 R.id.nav_blocked -> show(BlockedFragment(), TAG_BLOCKED)
-                R.id.nav_caregiver -> show(CaregiverFragment(), TAG_CAREGIVER)
                 else -> return@setOnItemSelectedListener false
             }
             true
@@ -57,6 +55,5 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val TAG_HOME = "home"
         const val TAG_BLOCKED = "blocked"
-        const val TAG_CAREGIVER = "caregiver"
     }
 }
