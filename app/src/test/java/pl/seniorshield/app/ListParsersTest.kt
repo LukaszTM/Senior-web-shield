@@ -32,8 +32,13 @@ class ListParsersTest {
                 """.trimIndent()
             )
         )
-        assertEquals(setOf("ads.example", "tracker.example", "upper.example"), rules.blocked)
-        assertEquals(setOf("cdn.example"), rules.allowed)
+        assertEquals(3, rules.blocked.size)
+        for (d in listOf("ads.example", "tracker.example", "upper.example")) assertTrue(d, rules.blocked.contains(d))
+        for (d in listOf("wild.example", "modifier.example", "path.example", "regex.example", "no-caret.example", "cdn.example")) {
+            assertFalse(d, rules.blocked.contains(d))
+        }
+        assertEquals(1, rules.allowed.size)
+        assertTrue(rules.allowed.contains("cdn.example"))
     }
 
     @Test
@@ -50,12 +55,16 @@ class ListParsersTest {
                 """.trimIndent()
             )
         )
-        assertEquals(setOf("oszustwo.example", "hosts.example", "not-lower.example"), set)
+        assertEquals(3, set.size)
+        for (d in listOf("oszustwo.example", "hosts.example", "not-lower.example")) assertTrue(d, set.contains(d))
+        assertFalse(set.contains("localhost"))
+        assertFalse(set.contains("garbage"))
     }
 
     @Test
     fun domainSetMatchesSuffixes() {
-        val set = DomainSet(setOf("ads.example"))
+        val set = DomainSet.of(setOf("ads.example", "ADS.example.", "dup.example", "dup.example"))
+        assertEquals(2, set.size)
         assertTrue(set.contains("ads.example"))
         assertTrue(set.contains("x.y.ADS.example."))
         assertFalse(set.contains("notads.example"))
@@ -71,9 +80,9 @@ class ListParsersTest {
         val builtin = BlockList.parse(StringReader("[scam]\npropellerads.com\n[tracking]\ngemius.pl"))
         val filters = Filters(
             builtin = builtin,
-            phishing = DomainSet(setOf("doplata.example", "gemius.pl")),
-            ads = DomainSet(setOf("doubleclick.net", "cdn.example", "propellerads.com")),
-            allowed = DomainSet(setOf("cdn.example", "doplata.example")),
+            phishing = DomainSet.of(setOf("doplata.example", "gemius.pl")),
+            ads = DomainSet.of(setOf("doubleclick.net", "cdn.example", "propellerads.com")),
+            allowed = DomainSet.of(setOf("cdn.example", "doplata.example")),
         )
         assertEquals(Category.SCAM, filters.lookup("propellerads.com"))      // builtin wins over ads
         assertEquals(Category.TRACKING, filters.lookup("hit.gemius.pl"))    // builtin wins over phishing
@@ -82,5 +91,15 @@ class ListParsersTest {
         assertNull(filters.lookup("static.cdn.example"))                    // exception beats ads
         assertNull(filters.lookup("google.com"))
         assertEquals(2 + 2 + 3, filters.totalSize)
+    }
+
+    @Test
+    fun hashesAreStableAndWellSpread() {
+        assertEquals(DomainSet.hash("example.com"), DomainSet.hash("example.com"))
+        val hashes = (0 until 50_000).map { DomainSet.hash("host$it.example") }.toHashSet()
+        assertEquals(50_000, hashes.size)
+        val big = DomainSet.of((0 until 50_000).map { "host$it.example" })
+        assertTrue(big.contains("a.host12345.example"))
+        assertFalse(big.contains("host50000.example"))
     }
 }

@@ -7,6 +7,8 @@ import pl.seniorshield.app.Prefs
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.io.ByteArrayInputStream
+import java.io.InputStreamReader
 import java.net.URL
 
 /**
@@ -46,7 +48,7 @@ class ListUpdater(private val context: Context) {
         var allowed = DomainSet.EMPTY
         File(dir, CERT_FILE).takeIf { it.isFile }?.let { f ->
             try {
-                phishing = DomainSet(f.bufferedReader().use { ListParsers.parseDomainList(it) })
+                phishing = f.bufferedReader().use { ListParsers.parseDomainList(it) }
             } catch (e: Exception) {
                 Log.w(TAG, "cannot read $CERT_FILE", e)
             }
@@ -54,8 +56,8 @@ class ListUpdater(private val context: Context) {
         File(dir, ADGUARD_FILE).takeIf { it.isFile }?.let { f ->
             try {
                 val rules = f.bufferedReader().use { ListParsers.parseAdGuard(it) }
-                ads = DomainSet(rules.blocked)
-                allowed = DomainSet(rules.allowed)
+                ads = rules.blocked
+                allowed = rules.allowed
             } catch (e: Exception) {
                 Log.w(TAG, "cannot read $ADGUARD_FILE", e)
             }
@@ -77,13 +79,13 @@ class ListUpdater(private val context: Context) {
         var changed = false
         var allOk = true
 
-        val adguard = fetchFirst(ADGUARD_URLS) { text ->
-            ListParsers.parseAdGuard(text.reader()).blocked.size >= MIN_ADGUARD_RULES
+        val adguard = fetchFirst(ADGUARD_URLS) { bytes ->
+            ListParsers.parseAdGuard(bytes.reader()).blocked.size >= MIN_ADGUARD_RULES
         }
         if (adguard != null) changed = replace(ADGUARD_FILE, adguard) || changed else allOk = false
 
-        val cert = fetchFirst(CERT_URLS) { text ->
-            ListParsers.parseDomainList(text.reader()).size >= MIN_CERT_DOMAINS
+        val cert = fetchFirst(CERT_URLS) { bytes ->
+            ListParsers.parseDomainList(bytes.reader()).size >= MIN_CERT_DOMAINS
         }
         if (cert != null) changed = replace(CERT_FILE, cert) || changed else allOk = false
 
@@ -106,11 +108,11 @@ class ListUpdater(private val context: Context) {
     }
 
     /** Downloads from the first URL whose content passes [valid]; null when none does. */
-    private fun fetchFirst(urls: List<String>, valid: (String) -> Boolean): ByteArray? {
+    private fun fetchFirst(urls: List<String>, valid: (ByteArray) -> Boolean): ByteArray? {
         for (url in urls) {
             try {
                 val bytes = download(url)
-                if (valid(String(bytes, Charsets.UTF_8))) return bytes
+                if (valid(bytes)) return bytes
                 Log.w(TAG, "rejected implausible list from $url (${bytes.size} bytes)")
             } catch (e: Exception) {
                 Log.w(TAG, "download failed: $url: $e")
@@ -118,6 +120,8 @@ class ListUpdater(private val context: Context) {
         }
         return null
     }
+
+    private fun ByteArray.reader() = InputStreamReader(ByteArrayInputStream(this), Charsets.UTF_8)
 
     @Throws(IOException::class)
     private fun download(url: String): ByteArray {

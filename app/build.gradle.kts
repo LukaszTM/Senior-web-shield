@@ -11,8 +11,8 @@ android {
         applicationId = "pl.seniorshield.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.2.1"
     }
 
     // Release signing comes from the environment (CI secrets or a local shell);

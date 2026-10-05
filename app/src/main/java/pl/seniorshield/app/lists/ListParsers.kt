@@ -3,7 +3,7 @@ package pl.seniorshield.app.lists
 import java.io.Reader
 
 /** Blocking and exception rules extracted from an AdGuard-syntax filter list. */
-class AdGuardRules(val blocked: Set<String>, val allowed: Set<String>)
+class AdGuardRules(val blocked: DomainSet, val allowed: DomainSet)
 
 object ListParsers {
 
@@ -14,8 +14,8 @@ object ListParsers {
      * `$important`) are ignored rather than approximated.
      */
     fun parseAdGuard(reader: Reader): AdGuardRules {
-        val blocked = HashSet<String>(65536)
-        val allowed = HashSet<String>(1024)
+        val blocked = DomainSet.Builder(65536)
+        val allowed = DomainSet.Builder(1024)
         reader.buffered().useLines { lines ->
             for (raw in lines) {
                 val line = raw.trim()
@@ -34,19 +34,18 @@ object ListParsers {
                 if (!rule.endsWith("^")) continue
                 rule = rule.substring(0, rule.length - 1)
                 if ('*' in rule || '/' in rule || '|' in rule) continue
-                val domain = DomainSet.normalize(rule) ?: continue
-                if (exception) allowed.add(domain) else blocked.add(domain)
+                if (exception) allowed.add(rule) else blocked.add(rule)
             }
         }
-        return AdGuardRules(blocked, allowed)
+        return AdGuardRules(blocked.build(), allowed.build())
     }
 
     /**
      * Parses a plain domain list (one per line, `#` comments; hosts-file lines
      * such as `0.0.0.0 domain` are accepted too), e.g. the CERT Polska warning list.
      */
-    fun parseDomainList(reader: Reader): Set<String> {
-        val out = HashSet<String>(16384)
+    fun parseDomainList(reader: Reader): DomainSet {
+        val out = DomainSet.Builder(16384)
         reader.buffered().useLines { lines ->
             for (raw in lines) {
                 var line = raw
@@ -55,10 +54,9 @@ object ListParsers {
                 line = line.trim()
                 if (line.isEmpty()) continue
                 val parts = line.split(' ', '\t').filter { it.isNotEmpty() }
-                val candidate = if (parts.size == 1) parts[0] else parts[1]
-                DomainSet.normalize(candidate)?.let { out.add(it) }
+                out.add(if (parts.size == 1) parts[0] else parts[1])
             }
         }
-        return out
+        return out.build()
     }
 }
