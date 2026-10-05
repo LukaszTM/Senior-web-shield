@@ -55,4 +55,13 @@
     <string name="desc_tracking">tracker – śledzi, co robisz w telefonie, i buduje Twój profil.</string>
     <string name="desc_scam">natarczywe reklamy, które często prowadzą do oszustw i wyłudzeń.</string>
     <string name="desc_filter">zatrzymana przez filtr sieciowy jako reklama lub śledzenie.</string>
+
+    <!-- protection lists -->
+    <string name="cat_phishing">Oszustwo</string>
+    <string name="desc_phishing">strona z listy ostrzeżeń CERT Polska – wyłudza dane lub pieniądze.</string>
+    <string name="lists_status_pending">Listy ochrony: wbudowana (%1$d domen) · trwa pobieranie aktualnych list…</string>
+    <string name="lists_status">Listy ochrony: %1$s domen · aktualizacja %2$s\n(filtr AdGuard + lista ostrzeżeń CERT Polska)</string>
+    <string name="lists_status_initial">Listy ochrony (filtr AdGuard + CERT Polska) pobiorą się po włączeniu ochrony.</string>
+    <string name="lists_updating">Sprawdzam aktualizacje list ochrony…</string>
+    <string name="lists_need_protection">Włącz ochronę, aby pobrać aktualne listy.</string>
 </resources>

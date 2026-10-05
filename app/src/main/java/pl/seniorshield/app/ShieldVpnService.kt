@@ -16,23 +16,31 @@ import pl.seniorshield.app.dns.Dns
 import pl.seniorshield.app.dns.DnsCache
 import pl.seniorshield.app.dns.Packets
 import pl.seniorshield.app.dns.UpstreamResolver
+import pl.seniorshield.app.lists.Filters
+import pl.seniorshield.app.lists.ListUpdater
+import pl.seniorshield.app.net.UnderlyingNetworkWatcher
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A local, on-device VPN that captures only DNS traffic. Queries for domains on
- * the blocklist get an immediate NXDOMAIN answer; everything else is answered
- * from a local cache or forwarded to an ad-blocking upstream resolver (AdGuard
- * DNS). No other traffic is routed through the tunnel and nothing leaves the
- * device except plain DNS queries.
+ * the blocklists (bundled, CERT Polska, AdGuard DNS filter) get an immediate
+ * NXDOMAIN answer; everything else is answered from a local cache or forwarded
+ * to the operator's own resolver (AdGuard DNS only as a fallback), so CDN
+ * selection and speed match a phone without the shield. No other traffic is
+ * routed through the tunnel and nothing leaves the device except plain DNS.
  */
 class ShieldVpnService : VpnService() {
 
     companion object {
         const val ACTION_START = "pl.seniorshield.app.action.START"
         const val ACTION_STOP = "pl.seniorshield.app.action.STOP"
+        const val ACTION_UPDATE_LISTS = "pl.seniorshield.app.action.UPDATE_LISTS"
 
         val isRunning = AtomicBoolean(false)
 
@@ -44,14 +52,21 @@ class ShieldVpnService : VpnService() {
         private const val CHANNEL_ID = "shield_status"
         private const val NOTIFICATION_ID = 1
         private const val DNS_PORT = 53
+        private const val LIST_CHECK_INTERVAL_HOURS = 6L
+        private const val LIST_RETRY_MINUTES = 15L
     }
 
     private var tun: ParcelFileDescriptor? = null
     private var tunOutput: FileOutputStream? = null
     private var workerThread: Thread? = null
     private var resolver: UpstreamResolver? = null
+    private var networkWatcher: UnderlyingNetworkWatcher? = null
     private var blockList: BlockList? = null
+    @Volatile private var filters: Filters? = null
     private val cache = DnsCache()
+    private val listUpdater by lazy { ListUpdater(this) }
+    private var maintenance: ScheduledExecutorService? = null
+    private val listRetryPending = AtomicBoolean(false)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return when (intent?.action) {
@@ -59,6 +74,11 @@ class ShieldVpnService : VpnService() {
                 stopVpn()
                 stopSelf()
                 START_NOT_STICKY
+            }
+            ACTION_UPDATE_LISTS -> {
+                if (tun == null) startVpn()
+                maintenance?.execute { refreshLists(force = true) }
+                START_STICKY
             }
             else -> {
                 startVpn()
@@ -107,9 +127,13 @@ class ShieldVpnService : VpnService() {
         tun = fd
         tunOutput = FileOutputStream(fd.fileDescriptor)
         BlockLog.init(this)
-        if (blockList == null) {
-            blockList = BlockList.load(this)
-            Log.i(TAG, "Blocklist loaded: ${blockList?.size} domains")
+        val builtin = blockList ?: BlockList.load(this).also {
+            blockList = it
+            Log.i(TAG, "Bundled blocklist: ${it.size} domains")
+        }
+        if (filters == null) {
+            filters = Filters(builtin)
+            Prefs.setListsDomainCount(this, builtin.size)
         }
 
         val upstream = UpstreamResolver(this, ::onUpstreamAnswer)
@@ -122,9 +146,54 @@ class ShieldVpnService : VpnService() {
             return
         }
         resolver = upstream
+        networkWatcher = UnderlyingNetworkWatcher(this) { network, dns ->
+            upstream.setUnderlyingNetwork(network, dns)
+        }.also { it.start() }
         isRunning.set(true)
 
         workerThread = Thread({ runLoop(fd) }, "shield-tun-reader").also { it.start() }
+
+        // Load the downloaded lists off the main thread, then keep them fresh.
+        val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "shield-maintenance").apply { isDaemon = true }
+        }
+        maintenance = scheduler
+        scheduler.execute {
+            applyFilters(listUpdater.loadFromDisk(builtin))
+            refreshLists(force = false)
+        }
+        scheduler.scheduleWithFixedDelay(
+            { refreshLists(force = false) },
+            LIST_CHECK_INTERVAL_HOURS, LIST_CHECK_INTERVAL_HOURS, TimeUnit.HOURS
+        )
+    }
+
+    /** Downloads newer lists when due and swaps them in; never blocks DNS handling. */
+    private fun refreshLists(force: Boolean) {
+        val builtin = blockList ?: return
+        try {
+            if (listUpdater.updateIfStale(force)) {
+                applyFilters(listUpdater.loadFromDisk(builtin))
+            } else if (force) {
+                Prefs.setListsDomainCount(this, filters?.totalSize ?: builtin.size)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "list refresh failed", e)
+        }
+        // No network yet (e.g. right after boot)? Try again soon instead of in six hours.
+        if (listUpdater.isStale() && listRetryPending.compareAndSet(false, true)) {
+            maintenance?.schedule(Runnable {
+                listRetryPending.set(false)
+                refreshLists(force = false)
+            }, LIST_RETRY_MINUTES, TimeUnit.MINUTES)
+        }
+    }
+
+    private fun applyFilters(fresh: Filters) {
+        filters = fresh
+        cache.clear() // answers cached before the new lists arrived may now be blocked
+        Prefs.setListsDomainCount(this, fresh.totalSize)
+        Log.i(TAG, "filters: builtin=${fresh.builtinSize} cert=${fresh.phishingSize} adguard=${fresh.adsSize}")
     }
 
     private fun runLoop(fd: ParcelFileDescriptor) {
@@ -159,7 +228,7 @@ class ShieldVpnService : VpnService() {
             return
         }
 
-        blockList?.lookup(question.name)?.let { category ->
+        filters?.lookup(question.name)?.let { category ->
             writePacket(Packets.buildUdpReply(udp, Dns.buildNxDomain(udp.payload, question)))
             onBlocked(question.name, category)
             return
@@ -202,6 +271,10 @@ class ShieldVpnService : VpnService() {
 
     private fun stopVpn() {
         isRunning.set(false)
+        maintenance?.shutdownNow()
+        maintenance = null
+        networkWatcher?.stop()
+        networkWatcher = null
         resolver?.stop()
         resolver = null
         workerThread?.interrupt()

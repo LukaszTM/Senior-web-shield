@@ -12,6 +12,8 @@ object Prefs {
     private const val KEY_COUNT_DATE = "blocked_date"
     private const val KEY_COUNT_TODAY = "blocked_today"
     private const val KEY_COUNT_TOTAL = "blocked_total"
+    private const val KEY_LISTS_UPDATED_AT = "lists_updated_at"
+    private const val KEY_LISTS_COUNT = "lists_domain_count"
 
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -45,4 +47,18 @@ object Prefs {
 
     fun blockedTotal(context: Context): Int =
         prefs(context).getInt(KEY_COUNT_TOTAL, 0)
+
+    fun listsUpdatedAt(context: Context): Long =
+        prefs(context).getLong(KEY_LISTS_UPDATED_AT, 0L)
+
+    fun setListsUpdatedAt(context: Context, millis: Long) {
+        prefs(context).edit().putLong(KEY_LISTS_UPDATED_AT, millis).apply()
+    }
+
+    fun listsDomainCount(context: Context): Int =
+        prefs(context).getInt(KEY_LISTS_COUNT, 0)
+
+    fun setListsDomainCount(context: Context, count: Int) {
+        prefs(context).edit().putInt(KEY_LISTS_COUNT, count).apply()
+    }
 }

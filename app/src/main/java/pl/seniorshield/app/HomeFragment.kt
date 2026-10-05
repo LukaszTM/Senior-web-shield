@@ -21,6 +21,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var statusHint: TextView
     private lateinit var toggleButton: MaterialButton
     private lateinit var counterText: TextView
+    private lateinit var listsStatus: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
@@ -45,10 +46,24 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         statusHint = view.findViewById(R.id.status_hint)
         toggleButton = view.findViewById(R.id.toggle_button)
         counterText = view.findViewById(R.id.counter_text)
+        listsStatus = view.findViewById(R.id.lists_status)
 
         toggleButton.setOnClickListener {
             if (ShieldVpnService.isRunning.get()) stopProtection() else enableProtection()
         }
+        listsStatus.setOnClickListener { requestListUpdate() }
+    }
+
+    private fun requestListUpdate() {
+        val context = requireContext()
+        if (!ShieldVpnService.isRunning.get()) {
+            Toast.makeText(context, R.string.lists_need_protection, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(context, ShieldVpnService::class.java)
+            .setAction(ShieldVpnService.ACTION_UPDATE_LISTS)
+        context.startService(intent)
+        Toast.makeText(context, R.string.lists_updating, Toast.LENGTH_SHORT).show()
     }
 
     override fun onResume() {
@@ -107,5 +122,18 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             Prefs.blockedToday(context),
             Prefs.blockedTotal(context)
         )
+        val updatedAt = Prefs.listsUpdatedAt(context)
+        val count = Prefs.listsDomainCount(context)
+        listsStatus.text = if (updatedAt == 0L && count == 0) {
+            getString(R.string.lists_status_initial)
+        } else if (updatedAt == 0L) {
+            getString(R.string.lists_status_pending, count)
+        } else {
+            getString(
+                R.string.lists_status,
+                java.text.NumberFormat.getIntegerInstance().format(count),
+                TimeFormat.relative(context, updatedAt)
+            )
+        }
     }
 }

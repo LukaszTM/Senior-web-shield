@@ -12,12 +12,20 @@ Aplikacja nie wymaga roota. Korzysta z mechanizmu **lokalnego VPN** systemu Andr
 1. Tworzy na telefonie lokalny tunel VPN, przez który przechodzą **wyłącznie zapytania
    DNS** (tłumaczenie nazw domen na adresy). Pozostały ruch (strony, wideo, rozmowy)
    idzie normalną drogą — **nic nie jest wysyłane na żaden zewnętrzny serwer VPN**.
-2. Każde zapytanie DNS jest sprawdzane na **wbudowanej liście ~300 sieci reklamowych,
-   trackerów i domen znanych ze scamu** (w tym polskich). Zablokowana domena dostaje
-   odpowiedź „nie istnieje" (NXDOMAIN) — reklama w aplikacji po prostu się nie ładuje.
-3. Pozostałe zapytania są przekazywane do **AdGuard DNS** (94.140.14.14) — publicznego
-   serwera DNS, który dodatkowo blokuje reklamy, trackery i strony wyłudzające dane.
-   To druga warstwa ochrony, aktualizowana na bieżąco po stronie serwera.
+2. Każde zapytanie DNS jest sprawdzane **lokalnie, na telefonie**, na trzech listach:
+   - wbudowanej (~300 sieci reklamowych, trackerów i domen scamowych, z kategoriami),
+   - **liście ostrzeżeń CERT Polska** (hole.cert.pl) — domeny używane w oszustwach
+     wymierzonych w Polaków: fałszywe dopłaty, paczki, banki, SMS-y z linkami,
+   - **filtrze AdGuard DNS** — ten sam zestaw reguł reklam/trackerów, którego używa
+     publiczny serwer AdGuard (z obsługą wyjątków `@@`).
+
+   Listy są pobierane po włączeniu ochrony i odświeżane co ok. 24 h. Zablokowana domena
+   dostaje odpowiedź „nie istnieje" (NXDOMAIN) — reklama po prostu się nie ładuje.
+3. Pozostałe zapytania są przekazywane do **serwera DNS operatora** (tego, z którego
+   telefon korzystałby bez VPN — wykrywanego automatycznie dla aktualnej sieci), dzięki
+   czemu dobór serwerów CDN (YouTube, Facebook, aktualizacje) i opóźnienia są takie same
+   jak bez aplikacji. **AdGuard DNS** (94.140.14.14) służy wyłącznie jako zapas, gdy
+   serwer operatora nie odpowiada.
 
 ## Funkcje dla seniora
 
@@ -82,9 +90,11 @@ Przez tunel przechodzą tylko zapytania DNS, więc przepustowość nie jest ogra
 
 - VPN jest oznaczony jako **sieć nielimitowana** (`setMetered(false)`) — inaczej Android
   traktuje połączenie jak taryfowe i ogranicza jakość wideo, pobieranie i synchronizację.
-- Zapytania są wysyłane przez **jedno współdzielone gniazdo** z dowolną liczbą zapytań
-  w locie; brak odpowiedzi po 1 s powoduje ponowienie do kolejnego serwera AdGuard
-  (IPv4 i IPv6), wygrywa pierwsza odpowiedź.
+- Zapytania idą do **DNS operatora** przez **jedno współdzielone gniazdo** przypięte do
+  sieci bazowej, z dowolną liczbą zapytań w locie; brak odpowiedzi po 1 s powoduje
+  ponowienie do kolejnego serwera (operator → AdGuard), wygrywa pierwsza odpowiedź.
+  Zewnętrzny resolver potrafi kierować do dalszych węzłów CDN niż DNS operatora —
+  stąd wybór serwera operatora jako domyślnego.
 - **Pamięć podręczna DNS** (do 2000 wpisów, z poszanowaniem TTL) obsługuje powtórne
   zapytania bez ruchu sieciowego.
 - Próby TCP/TLS do lokalnego serwera DNS (np. sonda „Prywatny DNS: automatycznie"
@@ -104,6 +114,7 @@ Przez tunel przechodzą tylko zapytania DNS, więc przepustowość nie jest ogra
 ## Prywatność
 
 Aplikacja nie ma żadnego serwera, nie zbiera i nie wysyła żadnych danych.
-Jedyny ruch wychodzący to zwykłe zapytania DNS do publicznego resolvera AdGuard DNS
-(polityka prywatności: adguard-dns.io). Licznik blokad jest przechowywany wyłącznie
-lokalnie na telefonie.
+Jedyny ruch wychodzący to zwykłe zapytania DNS do serwera operatora (jak bez aplikacji),
+awaryjnie do AdGuard DNS (polityka prywatności: adguard-dns.io), oraz pobieranie list
+blokad z adguardteam.github.io i hole.cert.pl. Licznik i lista blokad są przechowywane
+wyłącznie lokalnie na telefonie.

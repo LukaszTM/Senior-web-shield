@@ -15,7 +15,10 @@ enum class Category(
     TRACKING("tracking", R.string.cat_tracking, R.string.rating_medium, R.string.desc_tracking, R.color.risk_medium),
     SCAM("scam", R.string.cat_scam, R.string.rating_high, R.string.desc_scam, R.color.risk_high),
 
-    /** Not on the bundled list, but the upstream ad-filtering resolver blocked it. */
+    /** On the CERT Polska warning list: a site used for fraud or phishing. */
+    PHISHING("phishing", R.string.cat_phishing, R.string.rating_high, R.string.desc_phishing, R.color.risk_high),
+
+    /** Not on any local list, but the upstream ad-filtering resolver blocked it. */
     FILTER("filter", R.string.cat_filter, R.string.rating_medium, R.string.desc_filter, R.color.risk_medium);
 
     companion object {

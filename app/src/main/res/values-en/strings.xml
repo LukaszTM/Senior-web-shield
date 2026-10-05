@@ -53,4 +53,13 @@
     <string name="desc_tracking">tracker – follows what you do on the phone and builds your profile.</string>
     <string name="desc_scam">intrusive ads that often lead to scams and fraud.</string>
     <string name="desc_filter">stopped by the network filter as advertising or tracking.</string>
+
+    <!-- protection lists -->
+    <string name="cat_phishing">Fraud</string>
+    <string name="desc_phishing">on the CERT Polska warning list – steals data or money.</string>
+    <string name="lists_status_pending">Protection lists: built-in (%1$d domains) · downloading current lists…</string>
+    <string name="lists_status">Protection lists: %1$s domains · updated %2$s\n(AdGuard filter + CERT Polska warning list)</string>
+    <string name="lists_status_initial">Protection lists (AdGuard filter + CERT Polska) download once protection is on.</string>
+    <string name="lists_updating">Checking for protection list updates…</string>
+    <string name="lists_need_protection">Turn protection on to download current lists.</string>
 </resources>

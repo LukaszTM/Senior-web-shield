@@ -7,10 +7,6 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 class BlockedAdapter : RecyclerView.Adapter<BlockedAdapter.Holder>() {
 
@@ -48,21 +44,9 @@ class BlockedAdapter : RecyclerView.Adapter<BlockedAdapter.Holder>() {
             val times = context.resources.getQuantityString(
                 R.plurals.blocked_times, entry.count, entry.count
             )
-            meta.text = context.getString(R.string.blocked_meta, times, formatTime(entry.lastSeen))
-        }
-
-        private fun formatTime(millis: Long): String {
-            val date = Date(millis)
-            val now = Calendar.getInstance()
-            val then = Calendar.getInstance().apply { time = date }
-            val sameDay = now.get(Calendar.YEAR) == then.get(Calendar.YEAR) &&
-                now.get(Calendar.DAY_OF_YEAR) == then.get(Calendar.DAY_OF_YEAR)
-            val clock = SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
-            return if (sameDay) {
-                itemView.context.getString(R.string.time_today, clock)
-            } else {
-                SimpleDateFormat("d MMM", Locale.getDefault()).format(date) + ", " + clock
-            }
+            meta.text = context.getString(
+                R.string.blocked_meta, times, TimeFormat.relative(context, entry.lastSeen)
+            )
         }
     }
 }
