@@ -8,4 +8,8 @@
         android:id="@+id/nav_blocked"
         android:icon="@drawable/ic_list"
         android:title="@string/tab_blocked" />
+    <item
+        android:id="@+id/nav_caregiver"
+        android:icon="@drawable/ic_caregiver"
+        android:title="@string/tab_caregiver" />
 </menu>

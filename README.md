@@ -36,6 +36,12 @@ Aplikacja nie wymaga roota. Korzysta z mechanizmu **lokalnego VPN** systemu Andr
   (niskie / średnie / wysokie ryzyko), prostym wyjaśnieniem, liczbą blokad i czasem
   ostatniej. Ocena wynika z kategorii domeny na wbudowanej liście (`[ads]`, `[tracking]`,
   `[scam]`); strony zatrzymane przez AdGuard DNS są oznaczane jako „Podejrzana".
+- **Pauza zamiast wyłączania** — czerwony przycisk proponuje „Wstrzymaj na 15 minut"
+  (ochrona wraca sama); „Wyłącz na stałe" można zabezpieczyć **PIN-em opiekuna**.
+- **Strażnik ochrony** — gdy system ubije serwis, aplikacja włącza go ponownie przy
+  otwarciu, cyklicznie sprawdza w tle i w razie potrzeby wysyła powiadomienie
+  „Ochrona przestała działać"; zakładka **Opiekun** pozwala jednym dotknięciem wyłączyć
+  oszczędzanie baterii dla aplikacji i otworzyć ustawienia stałego VPN.
 - **Automatyczny start po restarcie telefonu** — senior nie musi niczego pamiętać.
 - **Stała ikona klucza** na pasku statusu = ochrona aktywna.
 - Brak reklam, brak opłat, brak zbierania jakichkolwiek danych.

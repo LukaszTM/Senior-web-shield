@@ -15,4 +15,7 @@
     <color name="risk_low">#B26A00</color>
     <color name="risk_medium">#D84315</color>
     <color name="risk_high">#C62828</color>
+    <color name="status_paused">#E65100</color>
+    <color name="button_pause">#1565C0</color>
+    <color name="banner_bg">#FDECEA</color>
 </resources>
