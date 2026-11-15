@@ -42,7 +42,10 @@ Aplikacja nie wymaga roota. Korzysta z mechanizmu **lokalnego VPN** systemu Andr
   otwarciu, cyklicznie sprawdza w tle i w razie potrzeby wysyła powiadomienie
   „Ochrona przestała działać"; zakładka **Opiekun** pozwala jednym dotknięciem wyłączyć
   oszczędzanie baterii dla aplikacji i otworzyć ustawienia stałego VPN.
-- **Automatyczny start po restarcie telefonu** — senior nie musi niczego pamiętać.
+- **Automatyczny start po restarcie telefonu i po aktualizacji aplikacji** — senior nie
+  musi niczego pamiętać. Najpewniejszy wariant: włączyć w systemie **„Stały VPN"**
+  (zakładka Opiekun → Ustawienia VPN), wtedy to Android sam uruchamia ochronę przy
+  starcie, niezależnie od ograniczeń tła.
 - **Stała ikona klucza** na pasku statusu = ochrona aktywna.
 - Brak reklam, brak opłat, brak zbierania jakichkolwiek danych.
 

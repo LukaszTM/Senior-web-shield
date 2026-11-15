@@ -97,12 +97,15 @@ class ShieldVpnService : VpnService() {
                 maintenance?.execute { refreshLists(force = true) }
             }
             else -> {
-                // ACTION_START, or a sticky restart after the system killed us (null intent).
+                // ACTION_START, the system's always-on VPN start (action
+                // "android.net.VpnService"), or a sticky restart after the system
+                // killed us (null intent).
                 val pausedUntil = Prefs.pausedUntil(this)
                 if (intent == null && pausedUntil > 0L) {
                     showPaused(pausedUntil)
                     armResume(pausedUntil)
                 } else {
+                    if (intent?.action == SERVICE_INTERFACE) Prefs.setEnabled(this, true)
                     clearPause()
                     startVpn()
                 }
